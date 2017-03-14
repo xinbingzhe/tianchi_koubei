@@ -1,0 +1,164 @@
+print('begin')
+import numpy as np
+import matplotlib.pyplot as plt 
+from sklearn import linear_model
+from sklearn.pipeline import Pipeline
+from sklearn.ensemble import AdaBoostRegressor
+from sklearn.feature_selection import RFECV
+from sklearn.ensemble.forest import RandomForestRegressor
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.ensemble import ExtraTreesRegressor
+road1 = "e:/tianchi_koubei/mid_dataset/feature_correct.txt"
+road2 = "e:/tianchi_koubei/mid_dataset/count_shop_pay_correct.txt"
+way1 = 'r'
+road3 = "e:/tianchi_koubei/result/ext_result4_without11.csv"
+way2 = 'w'
+def create_xday(xday):
+    for i in range(1,504):
+        xday.append(i)
+    return xday
+xday_list = []
+xday = create_xday(xday_list)
+def create_weekend(xweekend):
+    j = 3
+    qweekend = [68, 102, 190, 190, 229, 348, 446, 467]
+    for i in range(1,504): 
+        if j == 6 or j ==7:
+            if i not in qweekend:
+                xweekend.append(1)
+                if j == 7:
+                    j = 1
+                else:
+                    j += 1
+            else:
+                if j == 7:
+                    j = 1
+                else:
+                    j += 1
+                xweekend.append(0)
+        else:
+            xweekend.append(0)
+            j += 1
+    return xweekend
+xweekend_list = []
+xweekend = create_weekend(xweekend_list)
+def create_weekday():
+    j = 3
+    weekday = []
+    for i in range(1,504):
+        weekday.append(j)
+        j += 1
+        if j == 8:
+            j = 1
+    return weekday
+xweekday = create_weekday()
+def create_holiday(xday):
+    ho_f = []
+    holiday = [51,65,66,67,88,89,93,94,95,96,97,98,99,134,177,178,185,186,187,222,223,224,225,226,227,228,229,237,277,278,279,306,307,308,345,346,347,406,443,444,445,459,460,461,462,463,464,465]
+    for d in xday:
+        if d not in holiday:
+            ho_f.append(0)
+        else:
+            ho_f.append(1)
+    return ho_f
+xholiday = create_holiday(xday)
+
+fr1 = open(road1,way1)
+fr2 = open(road2,way1)
+fw = open(road3,way2)
+
+i = 0
+#读取特征
+def readfile_oneshop_X(fr,xday,xweekend,xweekday,xholiday):
+    X = []
+    X.append(xday)
+    X.append(xweekend)
+    X.append(xweekday)
+    X.append(xholiday)
+    '''
+    for r in range(0,5):
+        line = fr.readline()
+        if r < 4:
+            re = line.strip('\n').split(',')
+            data_str = map(float,re[1:])
+            data_float = []
+            for s in data_str:
+                data_float.append(s)
+            X.append((data_float))
+    '''
+    return np.array(X).T
+#读取目标值
+def readfile_oneshop_Y(fr):
+    line = fr.readline()
+    re = line.strip('\n').split(',')
+    data_str = map(float,re[1:])
+    data_float = []
+    for s in data_str:
+        data_float.append(s)
+    for i in range(1,490):
+        if data_float[i] != 0.0:
+            start = i
+            break
+    return data_float[start-1:]
+def Evaluation(pred,test):
+    shop_err = 0
+    for i in range(0,len(pred)):
+        for p,t in zip(pred[i],test[i]):
+            if (p+t) == 0.0:
+                shop_err += 0.0
+            else:
+                shop_err += abs((p-t)/(p+t))
+    total_err = shop_err/(len(pred)*len(pred[0]))
+    return total_err
+#shuchu
+def output(fw,shopid,y_pre):
+    y_pre_str = []
+    y_pre_int = map(int,y_pre)
+    y_pre_tostr = map(str,y_pre_int)
+    for i in y_pre_tostr:
+        y_pre_str.append(i)
+    fw.write(str(shopid)+','+','.join(y_pre_str)+'\n')
+##################    
+
+
+
+
+while i<2000:
+    # readfile
+    X = []
+    Y = readfile_oneshop_Y(fr2)
+    start = len(Y)
+    #print(start)
+    X = readfile_oneshop_X(fr1,xday,xweekend,xweekday,xholiday)[-(start+14):]
+    
+    x_train = X[:-14]
+    y_train = Y
+    x_test = X[-14:]
+
+    
+    
+    ###
+    params_rf = {'n_estimators':500,'min_samples_split': 2,'warm_start':True,'n_jobs':4}
+    #rf = RandomForestRegressor(**params_rf)
+    #rf.fit(x_train,y_train)
+    #y_pre_rf = rf.predict(x_test)
+    params_ext = {'max_features':'log2','n_estimators':600,'max_depth':12,'oob_score': True, 'n_jobs':4,'bootstrap':True}
+    ext = ExtraTreesRegressor(**params_ext)
+    ext.fit(x_train,y_train)
+    y_pre_ext = ext.predict(x_test)
+    ###
+    '''
+    plt.scatter(xday[-(start+14):-14],y_train)
+    plt.scatter(xday[-14:],y_pre_ext,color = 'green')
+    plt.plot(xday[-14:],y_pre_ext,color = 'red')
+    path = "e://tianchi_koubei/fig/rf_pre/"+str(i+1)+'.png'
+    plt.savefig(path+".png")
+    plt.clf()#清除图像，所有的都画到一起了
+    '''
+    output(fw,i+1,y_pre_ext)
+    print(i)
+    i += 1
+
+fr1.close()
+fr2.close()
+fw.close()
