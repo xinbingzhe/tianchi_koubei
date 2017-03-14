@@ -1,2 +1,2 @@
 # tianchi_koubei
-tianchikoubei_solution
+队员和都教授 dzqoo一起完成
